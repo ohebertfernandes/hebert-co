@@ -9,12 +9,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     
     <!-- Chosen Palette: Executive Gold & Slate -->
-    <!-- Background: #F8FAFC (Slate-50) for clean paper feel -->
-    <!-- Primary Text: #1E293B (Slate-800) -->
-    <!-- Accent/Brand: #B45309 (Amber-700) for Gold/Luxury cues -->
-    <!-- Success: #059669 (Emerald-600) for Money goals -->
-    <!-- Operational: #475569 (Slate-600) for Tasks -->
-
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #F8FAFC; color: #1E293B; }
         h1, h2, h3, h4, .serif { font-family: 'Playfair Display', serif; }
@@ -66,6 +60,24 @@
             50% { transform: scale(1.1); color: #059669; }
             100% { transform: scale(1); }
         }
+
+        /* Modal Transitions */
+        .modal {
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease-in-out;
+        }
+        .modal.open {
+            opacity: 1;
+            visibility: visible;
+        }
+        .modal.open .modal-content {
+            transform: scale(1);
+        }
+        .modal-content {
+            transform: scale(0.95);
+            transition: all 0.3s ease-in-out;
+        }
     </style>
 </head>
 <body class="flex flex-col h-screen overflow-hidden">
@@ -83,12 +95,12 @@
             <div class="hidden md:flex items-center gap-6 text-sm">
                 <div class="flex flex-col items-end">
                     <span class="text-xs text-slate-500 uppercase">Meta Final (Nov)</span>
-                    <span class="font-bold text-emerald-700">R$ 99.000,00</span>
+                    <span class="font-bold text-emerald-700">R$ 150.000,00</span>
                 </div>
                 <div class="h-8 w-px bg-gray-200"></div>
                 <div class="flex flex-col items-end">
                     <span class="text-xs text-slate-500 uppercase">Caixa Acumulado (Alvo)</span>
-                    <span id="global-cash-display" class="font-bold text-amber-700">R$ 0 / R$ 36.340</span>
+                    <span id="global-cash-display" class="font-bold text-amber-700">R$ 0 / R$ 48.840</span>
                 </div>
             </div>
         </div>
@@ -129,9 +141,19 @@
                             </div>
                         </div>
                     </div>
-                    <p id="month-desc" class="text-slate-600 leading-relaxed">
+                    <p id="month-desc" class="text-slate-600 leading-relaxed mb-6">
                         Este é o momento zero. O foco não é lucro, é movimento. Você validará a oferta e gerará o primeiro caixa sem gastar 1 centavo, usando networking e parceiros comissionados.
                     </p>
+                    
+                    <!-- NEW STRATEGY BUTTON -->
+                    <button onclick="openStrategyModal()" class="group flex items-center gap-3 px-5 py-3 bg-slate-800 hover:bg-slate-700 text-white rounded-md transition-all shadow-md active:scale-95">
+                        <span class="text-lg">📜</span>
+                        <div class="text-left">
+                            <p class="text-[10px] uppercase tracking-widest text-slate-400 font-bold group-hover:text-amber-400 transition-colors">Plano de Guerra</p>
+                            <p class="text-sm font-bold">Ver Estratégia do Mês</p>
+                        </div>
+                        <span class="ml-auto text-slate-400 group-hover:translate-x-1 transition-transform">→</span>
+                    </button>
                 </section>
 
                 <!-- Sales Register (Caixa Registradora) -->
@@ -260,192 +282,440 @@
         </main>
     </div>
 
+    <!-- STRATEGY MODAL -->
+    <div id="strategy-modal" class="modal fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-slate-900/80 backdrop-blur-sm" onclick="closeStrategyModal()"></div>
+        <div class="modal-content bg-white w-full max-w-2xl max-h-[85vh] overflow-y-auto rounded-lg shadow-2xl relative z-10 flex flex-col">
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-gray-100 bg-slate-50 sticky top-0 z-10">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <span id="modal-phase" class="text-[10px] font-bold uppercase tracking-widest text-amber-600 bg-amber-100 px-2 py-1 rounded-sm">Fase 1</span>
+                        <h3 id="modal-title" class="serif text-2xl font-bold text-slate-900 mt-2">Janeiro: Estratégia Detalhada</h3>
+                    </div>
+                    <button onclick="closeStrategyModal()" class="text-slate-400 hover:text-slate-900 transition-colors p-2">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Modal Body -->
+            <div id="modal-body" class="p-6 md:p-8 space-y-6">
+                <!-- Content injected via JS -->
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-6 border-t border-gray-100 bg-slate-50 text-center">
+                <button onclick="closeStrategyModal()" class="px-6 py-2 bg-slate-900 text-white text-sm font-bold uppercase tracking-widest rounded hover:bg-slate-800 transition-colors">
+                    Entendi, vou executar
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Application Logic -->
     <script>
         // --- DATA STORE ---
-        // Derived from "Plano Tático Mestre: Hebert & Co."
-        // Added 'actual' fields to track user progress
+        // Updated Logic: 
+        // 1. Reinvestment = 20% of PREVIOUS month's profit.
+        // 2. Salary starts in August (1k) -> Nov (5k).
+        // 3. SPECIAL: Feb ads skipped and accumulated into March.
         const appData = [
             {
                 id: 0,
                 month: 'Janeiro',
-                phase: 'Fase 1: Tração',
-                focus: 'Venda Orgânica & Parceiros',
-                desc: 'Validação da oferta e geração do primeiro caixa sem gastar 1 centavo. Foco total em "sola de sapato" digital e parcerias comissionadas.',
+                phase: 'Fase 1: Tração Orgânica',
+                focus: 'Venda no "Braço"',
+                desc: 'Mês de validação. Como não tivemos lucro em dezembro, o investimento em anúncios é ZERO. Tudo depende do seu esforço no WhatsApp e Networking.',
                 tip: 'Não venda o perfume, venda a oportunidade exclusiva. "Consegui um lote de 5 unidades".',
                 stats: { sales: 20, revenue: 3200, profit: 1200, ads: 0, salary: 0, accumulated: 1200 },
-                actual: { sales: 0, revenue: 0, profit: 0 }, // User progress
+                actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
                     'Listar 50 contatos "quentes" no WhatsApp',
-                    'Definir script de abordagem ("Lote Exclusivo")',
-                    'Mapear 10 barbearias/consultores locais',
                     'Fechar 2 parcerias por comissão (R$ 30/venda)',
                     'Postar Stories gerando escassez real',
-                    'Separar R$ 1.200 de lucro no caixa (Intocável)'
-                ]
+                    'Separar R$ 1.200 de lucro no caixa (Base para Fev)'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-slate-50 p-4 border-l-4 border-slate-500 rounded-r-md">
+                            <h4 class="font-bold text-slate-900 text-sm uppercase mb-1">Caixa Zero</h4>
+                            <p class="text-sm text-slate-700">Não gaste nada em anúncios. O lucro deste mês (R$ 1.200) vai financiar os anúncios acumulados de Março. Guarde cada centavo.</p>
+                        </div>
+                        <div class="bg-amber-50 p-4 border-l-4 border-amber-500 rounded-r-md">
+                            <h4 class="font-bold text-amber-900 text-sm uppercase mb-1">Ação Tática</h4>
+                            <p class="text-sm text-amber-800">Abordagem 1 a 1 no WhatsApp. Script: "Fulano, consegui 5 unidades de um perfume incrível. Lembrei de você."</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 1,
                 month: 'Fevereiro',
-                phase: 'Fase 2: Expansão Mix',
-                focus: 'LTV & Decants',
-                desc: 'Aumentar o ticket por cliente oferecendo variedade. Introdução de Decants (frações) para quem quer testar sem investir muito.',
-                tip: 'Use a regra da indicação: "Gostou? Indique um amigo e ganhe 10% off na próxima".',
+                phase: 'Fase 2: Represa Estratégica',
+                focus: 'Acúmulo de Verba',
+                desc: 'Decisão Estratégica: Não investiremos os R$ 240 agora. Vamos segurar esse valor para somar com o lucro de Fev e fazer um lançamento mais forte da Loja em Março.',
+                tip: 'Foque totalmente em indicações e orgânico para maximizar o lucro que será reinvestido mês que vem.',
                 stats: { sales: 35, revenue: 5600, profit: 2100, ads: 0, salary: 0, accumulated: 3300 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
+                    'Guardar verba de Ads (R$ 240) para Março',
                     'Contatar os 20 clientes de Jan (Pós-venda)',
-                    'Pedir 1 indicação para cada cliente satisfeito',
                     'Montar kits de Decants (3x 5ml)',
-                    'Interagir com 5 perfis executivos locais por dia',
-                    'Validar lucro acumulado de R$ 3.300'
-                ]
+                    'Validar lucro acumulado de R$ 3.300 (Caixa cheio)'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-blue-50 p-4 border-l-4 border-blue-500 rounded-r-md">
+                            <h4 class="font-bold text-blue-900 text-sm uppercase mb-1">Efeito Estilingue</h4>
+                            <p class="text-sm text-blue-800">Ao não gastar em anúncios agora, juntamos força. Em Março teremos verba dupla (Jan + Fev) para inaugurar a loja com tráfego pesado.</p>
+                        </div>
+                        <div class="bg-emerald-50 p-4 border-l-4 border-emerald-500 rounded-r-md">
+                            <h4 class="font-bold text-emerald-900 text-sm uppercase mb-1">Campanha de Indicação</h4>
+                            <p class="text-sm text-emerald-800">Como não tem anúncio, sua fonte de leads é a indicação. Ofereça 10% de desconto se indicarem um amigo.</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 2,
                 month: 'Março',
                 phase: 'Fase 3: Digitalização',
-                focus: 'Loja & Tráfego Inicial',
-                desc: 'Profissionalização da vitrine. Início tímido do tráfego pago (R$ 600) para testar criativos e públicos.',
-                tip: 'Loja bonita sem tráfego é loja no deserto. O site deve ser simples e rápido.',
-                stats: { sales: 50, revenue: 8000, profit: 3000, ads: 600, salary: 1000, accumulated: 4700 },
+                focus: 'Loja & Tráfego Duplo',
+                desc: 'Inauguração da Loja Virtual com "Tiro de Canhão". Investimento acumulado de R$ 660 (Jan + Fev) para validar rápido.',
+                tip: 'Com R$ 660, você consegue alcançar cerca de 20.000 pessoas na sua cidade. Prepare o direct.',
+                stats: { sales: 50, revenue: 8000, profit: 3000, ads: 660, salary: 0, accumulated: 5640 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
                     'Criar loja na Yampi/Cartpanda/Shopify',
+                    'Investir R$ 660 em Ads (Acumulado Jan+Fev)',
                     'Gravar vídeo "User Generated Content" do produto',
-                    'Configurar Business Manager do Meta Ads',
-                    'Subir campanha (R$ 20/dia) focada na cidade',
-                    'Sacar primeiro Pro-labore simbólico (R$ 1.000)'
-                ]
+                    'Manter Pro-labore ZERO (Foco no caixa)'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-amber-50 p-4 border-l-4 border-amber-500 rounded-r-md">
+                            <h4 class="font-bold text-amber-900 text-sm uppercase mb-1">Investimento Turbo (R$ 660)</h4>
+                            <p class="text-sm text-amber-800">
+                                <strong>Origem:</strong> R$ 240 (Jan) + R$ 420 (Fev).<br>
+                                Use essa verba maior para testar 3 criativos diferentes de uma vez e descobrir qual vende mais.
+                            </p>
+                        </div>
+                        <div class="bg-blue-50 p-4 border-l-4 border-blue-500 rounded-r-md">
+                            <h4 class="font-bold text-blue-900 text-sm uppercase mb-1">Estratégia: Conversão</h4>
+                            <p class="text-sm text-blue-800">Agora com verba decente e site pronto, configure o Pixel do Facebook e foque em campanhas de "Conversão" ou "Initiate Checkout".</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 3,
                 month: 'Abril',
                 phase: 'Fase 4: Escala Inicial',
                 focus: 'Preparação Mães',
-                desc: 'Aumentar a consistência. Preparação de estoque feminino para o Dia das Mães.',
-                tip: 'Comece a avisar sua Lista VIP sobre o Dia das Mães 15 dias antes.',
-                stats: { sales: 70, revenue: 11200, profit: 4200, ads: 840, salary: 1000, accumulated: 7060 },
+                desc: 'Investimento de R$ 600 (20% do lucro de Mar). Preparação de estoque feminino.',
+                tip: 'Use os R$ 600 para criar públicos de remarketing (quem viu, mas não comprou).',
+                stats: { sales: 70, revenue: 11200, profit: 4200, ads: 600, salary: 0, accumulated: 9240 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
+                    'Investir R$ 600 em Ads (Origem: Lucro Mar)',
                     'Estoque de perfumes femininos (Good Girl/La Vie)',
-                    'Aumentar tráfego gradualmente (R$ 25/dia)',
-                    'Campanha "Antecipe o Presente da Mãe"',
-                    'Validar métricas de anúncio (CPA < R$ 25)'
-                ]
+                    'Campanha "Antecipe o Presente da Mãe"'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-pink-50 p-4 border-l-4 border-pink-500 rounded-r-md">
+                            <h4 class="font-bold text-pink-900 text-sm uppercase mb-1">Estratégia: Foco Feminino</h4>
+                            <p class="text-sm text-pink-800">Abril é preparação. O Dia das Mães é a segunda melhor data do ano. Garanta acesso a perfumes femininos de alta saída.</p>
+                        </div>
+                        <div class="bg-slate-50 p-4 border-l-4 border-slate-500 rounded-r-md">
+                            <h4 class="font-bold text-slate-900 text-sm uppercase mb-1">Ação Tática: Antecipação</h4>
+                            <p class="text-sm text-slate-700">Avise a lista VIP: "Garanta o presente da sua mãe antes que acabe". Aumente o orçamento de tráfego gradualmente.</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                id: 1,
+                month: 'Fevereiro',
+                phase: 'Fase 2: Início dos Ads',
+                focus: 'Primeiro Impulso',
+                desc: 'Agora a roda gira. Pegamos 20% do lucro de Janeiro (R$ 240) e colocamos em tráfego para atrair gente nova.',
+                tip: 'Use os R$ 240 para impulsionar seus melhores posts de Janeiro para público local.',
+                stats: { sales: 35, revenue: 5600, profit: 2100, ads: 240, salary: 0, accumulated: 3060 },
+                actual: { sales: 0, revenue: 0, profit: 0 },
+                tasks: [
+                    'Investir R$ 240 em tráfego (Origem: Lucro Jan)',
+                    'Contatar os 20 clientes de Jan (Pós-venda)',
+                    'Montar kits de Decants (3x 5ml)',
+                    'Validar lucro acumulado de R$ 3.060'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-amber-50 p-4 border-l-4 border-amber-500 rounded-r-md">
+                            <h4 class="font-bold text-amber-900 text-sm uppercase mb-1">Matemática do Investimento</h4>
+                            <p class="text-sm text-amber-800">Lucro Jan: R$ 1.200 → 20% = <strong>R$ 240 de Ads</strong>. Use essa verba para atrair seguidores novos na sua cidade.</p>
+                        </div>
+                        <div class="bg-emerald-50 p-4 border-l-4 border-emerald-500 rounded-r-md">
+                            <h4 class="font-bold text-emerald-900 text-sm uppercase mb-1">Campanha de Indicação</h4>
+                            <p class="text-sm text-emerald-800">Fale com os 20 clientes de Janeiro. Ofereça 10% de desconto se indicarem um amigo.</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                id: 2,
+                month: 'Março',
+                phase: 'Fase 3: Digitalização',
+                focus: 'Loja & Tráfego Crescente',
+                desc: 'Investimento sobe para R$ 420 (20% do lucro de Fev). Foco em levar as pessoas para a Loja Virtual.',
+                tip: 'O orçamento aumentou quase 100%. Teste vídeos diferentes.',
+                stats: { sales: 50, revenue: 8000, profit: 3000, ads: 420, salary: 0, accumulated: 5640 },
+                actual: { sales: 0, revenue: 0, profit: 0 },
+                tasks: [
+                    'Criar loja na Yampi/Cartpanda/Shopify',
+                    'Investir R$ 420 em Ads (Origem: Lucro Fev)',
+                    'Gravar vídeo "User Generated Content" do produto',
+                    'Manter Pro-labore ZERO (Foco no caixa)'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-blue-50 p-4 border-l-4 border-blue-500 rounded-r-md">
+                            <h4 class="font-bold text-blue-900 text-sm uppercase mb-1">Matemática do Investimento</h4>
+                            <p class="text-sm text-blue-800">Lucro Fev: R$ 2.100 → 20% = <strong>R$ 420 de Ads</strong>. Agora mande o tráfego para o link da sua loja.</p>
+                        </div>
+                        <div class="bg-amber-50 p-4 border-l-4 border-amber-500 rounded-r-md">
+                            <h4 class="font-bold text-amber-900 text-sm uppercase mb-1">Criativo da Vez</h4>
+                            <p class="text-sm text-amber-800">Faça um vídeo simples mostrando o produto na mão. "Esse é o segredo dos executivos...".</p>
+                        </div>
+                    </div>
+                `
+            },
+            {
+                id: 3,
+                month: 'Abril',
+                phase: 'Fase 4: Escala Inicial',
+                focus: 'Preparação Mães',
+                desc: 'Investimento de R$ 600 (20% do lucro de Mar). Preparação de estoque feminino.',
+                tip: 'Use os R$ 600 para criar públicos de remarketing (quem viu, mas não comprou).',
+                stats: { sales: 70, revenue: 11200, profit: 4200, ads: 600, salary: 0, accumulated: 9240 },
+                actual: { sales: 0, revenue: 0, profit: 0 },
+                tasks: [
+                    'Investir R$ 600 em Ads (Origem: Lucro Mar)',
+                    'Estoque de perfumes femininos (Good Girl/La Vie)',
+                    'Campanha "Antecipe o Presente da Mãe"'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-pink-50 p-4 border-l-4 border-pink-500 rounded-r-md">
+                            <h4 class="font-bold text-pink-900 text-sm uppercase mb-1">Estratégia: Foco Feminino</h4>
+                            <p class="text-sm text-pink-800">Lucro Mar: R$ 3.000 → 20% = <strong>R$ 600 de Ads</strong>. Use esse dinheiro para avisar que o Dia das Mães está chegando.</p>
+                        </div>
+                        <div class="bg-slate-50 p-4 border-l-4 border-slate-500 rounded-r-md">
+                            <h4 class="font-bold text-slate-900 text-sm uppercase mb-1">Estoque</h4>
+                            <p class="text-sm text-slate-700">Garanta acesso a perfumes femininos de alta saída com seu fornecedor.</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 4,
                 month: 'Maio',
                 phase: 'Fase 4: Escala (Pico 1)',
                 focus: 'Dia das Mães',
-                desc: 'Primeiro grande teste de fogo. Foco total em operação e entrega rápida. O lucro aqui é vital.',
+                desc: 'Investimento de R$ 840 (20% do lucro de Abr). Primeiro grande pico de vendas.',
                 tip: 'Entregue rápido. No Dia das Mães, o atraso é imperdoável.',
-                stats: { sales: 110, revenue: 17600, profit: 6600, ads: 1320, salary: 1000, accumulated: 11340 },
+                stats: { sales: 110, revenue: 17600, profit: 6600, ads: 840, salary: 0, accumulated: 15000 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
-                    'Operação de Guerra: Resposta rápida no Zap',
+                    'Investir R$ 840 em Ads (Origem: Lucro Abr)',
                     'Contratar motoboy extra para semana das Mães',
-                    'Pós-venda imediato para evitar devolução',
-                    'Guardar TODO o excedente (Sacrifício R$ 1k)'
-                ]
+                    'Guardar TODO o excedente (Pro-labore ZERO)'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-red-50 p-4 border-l-4 border-red-500 rounded-r-md">
+                            <h4 class="font-bold text-red-900 text-sm uppercase mb-1">Matemática do Investimento</h4>
+                            <p class="text-sm text-red-800">Lucro Abr: R$ 4.200 → 20% = <strong>R$ 840 de Ads</strong>. Concentre essa verba nos primeiros 10 dias do mês.</p>
+                        </div>
+                        <div class="bg-emerald-50 p-4 border-l-4 border-emerald-500 rounded-r-md">
+                            <h4 class="font-bold text-emerald-900 text-sm uppercase mb-1">Marco Financeiro</h4>
+                            <p class="text-sm text-emerald-800">Se batermos a meta, fecharemos o mês com R$ 15.000 em caixa acumulado.</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 5,
                 month: 'Junho',
                 phase: 'Fase 4: Escala (Pico 2)',
                 focus: 'Dia dos Namorados',
-                desc: 'Campanhas de Kits de Casal. Volume alto de vendas. Manutenção do sacrifício pessoal para engordar o caixa.',
+                desc: 'Investimento recorde de R$ 1.320 (20% do lucro de Mai). Foco em Kits de Casal.',
                 tip: 'Venda o "Combo Amor" (1 Masc + 1 Fem) para aumentar o ticket médio.',
-                stats: { sales: 120, revenue: 19200, profit: 7200, ads: 1440, salary: 1000, accumulated: 16100 },
+                stats: { sales: 120, revenue: 19200, profit: 7200, ads: 1320, salary: 0, accumulated: 20880 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
+                    'Investir R$ 1.320 em Ads (Origem: Lucro Mai)',
                     'Criar oferta "Combo Casal" (Desconto progressivo)',
-                    'Aumentar tráfego para R$ 40-50/dia',
-                    'Repor estoque dos best-sellers pós-data',
-                    'Validar caixa acumulado: R$ 16.100'
-                ]
+                    'Resistir à tentação: Pro-labore ZERO'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-purple-50 p-4 border-l-4 border-purple-500 rounded-r-md">
+                            <h4 class="font-bold text-purple-900 text-sm uppercase mb-1">Matemática do Investimento</h4>
+                            <p class="text-sm text-purple-800">Lucro Mai: R$ 6.600 → 20% = <strong>R$ 1.320 de Ads</strong>. Verba agressiva para vender kits duplos.</p>
+                        </div>
+                        <div class="bg-amber-50 p-4 border-l-4 border-amber-500 rounded-r-md">
+                            <h4 class="font-bold text-amber-900 text-sm uppercase mb-1">Oferta</h4>
+                            <p class="text-sm text-amber-800">"Combo Amor": Compre o dele e leve o dela com 15% OFF.</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 6,
                 month: 'Julho',
                 phase: 'Fase 5: Pivot',
-                focus: 'Aumento Ticket & Pro-labore',
-                desc: 'Aumento do pro-labore para R$ 2.000 (respiro). Continuidade do tráfego pesado para manter a bola de neve girando.',
+                focus: 'Aumento Ticket',
+                desc: 'Investimento de R$ 1.440 (20% do lucro de Jun). Mês de estabilização pós-datas comemorativas.',
                 tip: 'Analise os dados do semestre. Qual perfume vendeu mais? Foque nele.',
-                stats: { sales: 140, revenue: 22400, profit: 8400, ads: 1680, salary: 2000, accumulated: 20820 },
+                stats: { sales: 140, revenue: 22400, profit: 8400, ads: 1440, salary: 0, accumulated: 27840 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
-                    'Aumentar Pro-labore para R$ 2.000',
+                    'Investir R$ 1.440 em Ads (Origem: Lucro Jun)',
                     'Pesquisa inicial de fornecedores (Frascos/Tampas)',
-                    'Manter tráfego constante (R$ 55/dia)',
-                    'Limpar estoque de itens de baixo giro'
-                ]
+                    'Último mês sem salário!'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-blue-50 p-4 border-l-4 border-blue-500 rounded-r-md">
+                            <h4 class="font-bold text-blue-900 text-sm uppercase mb-1">Matemática do Investimento</h4>
+                            <p class="text-sm text-blue-800">Lucro Jun: R$ 7.200 → 20% = <strong>R$ 1.440 de Ads</strong>. Manter o ritmo mesmo sem data comemorativa.</p>
+                        </div>
+                        <div class="bg-slate-50 p-4 border-l-4 border-slate-500 rounded-r-md">
+                            <h4 class="font-bold text-slate-900 text-sm uppercase mb-1">Pesquisa</h4>
+                            <p class="text-sm text-slate-700">Comece a orçar frascos e tampas. O caixa acumulado já está em R$ 27.840.</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 7,
                 month: 'Agosto',
                 phase: 'Fase 5: Pivot (Pico 3)',
                 focus: 'Dia dos Pais',
-                desc: 'Data mais forte para masculino. Foco total em perfumes amadeirados e sóbrios. Último grande acúmulo antes da produção.',
+                desc: 'Investimento de R$ 1.680 (20% do lucro de Jul). Primeiro mês de Pro-labore (R$ 1.000).',
                 tip: 'Argumento: "Um perfume à altura do sucesso do seu pai".',
-                stats: { sales: 150, revenue: 24000, profit: 9000, ads: 1800, salary: 2000, accumulated: 26020 },
+                stats: { sales: 150, revenue: 24000, profit: 9000, ads: 1680, salary: 1000, accumulated: 34160 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
+                    'Investir R$ 1.680 em Ads (Origem: Lucro Jul)',
                     'Campanha "Pai Executivo" (Foco em Couro/Madeira)',
-                    'Investimento pesado em Ads (R$ 1.800)',
-                    'Verificar saldo: Meta R$ 26.000 batida?',
-                    'Iniciar contato com fábrica para orçamento final'
-                ]
+                    'Retirar 1º Pro-labore (R$ 1.000)'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-slate-800 p-4 border-l-4 border-amber-500 rounded-r-md">
+                            <h4 class="font-bold text-amber-400 text-sm uppercase mb-1">Matemática do Investimento</h4>
+                            <p class="text-sm text-gray-300">Lucro Jul: R$ 8.400 → 20% = <strong>R$ 1.680 de Ads</strong>. Foco total em público masculino +40 anos.</p>
+                        </div>
+                        <div class="bg-emerald-50 p-4 border-l-4 border-emerald-500 rounded-r-md">
+                            <h4 class="font-bold text-emerald-900 text-sm uppercase mb-1">Marco Pessoal</h4>
+                            <p class="text-sm text-emerald-800">Parabéns! Primeiro salário de R$ 1.000 liberado. O caixa da empresa continua crescendo forte.</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 8,
                 month: 'Setembro',
                 phase: 'Fase 5: Produção',
                 focus: 'Encomenda "The Chairman"',
-                desc: 'Momento da verdade. O dinheiro sai do caixa para a fábrica. Encomenda do lote de 300 unidades.',
+                desc: 'Investimento de R$ 1.800 (20% do lucro de Ago). Momento de pagar a fábrica.',
                 tip: 'Pague à vista para garantir prioridade na fábrica. O Natal não espera.',
-                stats: { sales: 160, revenue: 25600, profit: 9600, ads: 1920, salary: 2000, accumulated: 31700 },
+                stats: { sales: 160, revenue: 25600, profit: 9600, ads: 1800, salary: 1000, accumulated: 40960 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
-                    'Fechar contrato com Laboratório/Fábrica',
+                    'Investir R$ 1.800 em Ads (Origem: Lucro Ago)',
                     'Pagar produção do Lote 300un (R$ ~24k)',
-                    'Finalizar design de rótulos e caixas',
-                    'Manter revenda rodando para pagar contas do mês'
-                ]
+                    'Finalizar design de rótulos',
+                    'Manter Pro-labore de R$ 1.000'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-slate-100 p-4 border-l-4 border-slate-900 rounded-r-md">
+                            <h4 class="font-bold text-slate-900 text-sm uppercase mb-1">O Pedido da Fábrica</h4>
+                            <p class="text-sm text-slate-700">Temos R$ 40.960 em caixa. Pagamos os R$ 24.000 da produção à vista e ainda sobram R$ 16.000.</p>
+                        </div>
+                        <div class="bg-blue-50 p-4 border-l-4 border-blue-500 rounded-r-md">
+                            <h4 class="font-bold text-blue-900 text-sm uppercase mb-1">Reinvestimento</h4>
+                            <p class="text-sm text-blue-800">Lucro Ago: R$ 9.000 → 20% = <strong>R$ 1.800 de Ads</strong>. Mantenha as vendas de revenda rodando.</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 9,
                 month: 'Outubro',
                 phase: 'Fase 6: Aquecimento',
                 focus: 'Narrativa & Leads',
-                desc: 'Mudança de chave. Menos foco em venda direta, mais foco em captar leads para o lançamento. Suspense no ar.',
+                desc: 'Mudança de chave. Menos foco em venda direta, mais foco em captar leads para o lançamento. Verba recorde de Ads (R$ 3.780).',
                 tip: 'Mostre bastidores. "Algo novo está chegando". Crie curiosidade.',
-                stats: { sales: 180, revenue: 28800, profit: 10800, ads: 2160, salary: 4000, accumulated: 36340 },
+                stats: { sales: 180, revenue: 28800, profit: 10800, ads: 3780, salary: 1000, accumulated: 48840 },
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
+                    'Investir R$ 1.920 em Ads (Origem: Lucro Set)',
                     'Postar spoilers (Frasco, silhueta)',
                     'Criar Landing Page "Lista de Espera"',
-                    'Desviar 50% da verba de Ads para captação de Leads',
-                    'Abrir Grupo VIP de Lançamento no WhatsApp'
-                ]
+                    'Manter Pro-labore de R$ 1.000'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-purple-50 p-4 border-l-4 border-purple-500 rounded-r-md">
+                            <h4 class="font-bold text-purple-900 text-sm uppercase mb-1">Mudança de Tom</h4>
+                            <p class="text-sm text-purple-800">Lucro Set: R$ 9.600 → 20% = <strong>R$ 1.920 de Ads</strong>. Use esse dinheiro APENAS para captar leads para o Grupo VIP.</p>
+                        </div>
+                        <div class="bg-slate-50 p-4 border-l-4 border-slate-500 rounded-r-md">
+                            <h4 class="font-bold text-slate-900 text-sm uppercase mb-1">Caixa Pré-Lançamento</h4>
+                            <p class="text-sm text-slate-700">Chegamos com <strong>R$ 48.840</strong> acumulados. A fábrica está paga e temos muita gordura para a Black Friday.</p>
+                        </div>
+                    </div>
+                `
             },
             {
                 id: 10,
                 month: 'Novembro',
                 phase: 'Fase 6: O LANÇAMENTO',
                 focus: 'Black Friday & Marca Própria',
-                desc: 'O grande dia. Lançamento do The Chairman. Meta de esgotar o estoque em 72 horas.',
-                tip: 'A oferta é Rei. "De R$ 389 por R$ 297 - Lote Fundador".',
-                stats: { sales: 300, revenue: 99000, profit: 50000, ads: 8000, salary: 10000, accumulated: 80000 }, // Estimated blowout
+                desc: 'O grande dia. Meta Audaciosa: R$ 150.000. Esgotar o Chairman e vender muito estoque de revenda no vácuo.',
+                tip: 'A oferta é Rei. "De R$ 389 por R$ 297 - Lote Fundador". Upsell com importados.',
+                stats: { sales: 600, revenue: 150000, profit: 95000, ads: 20000, salary: 5000, accumulated: 118840 }, 
                 actual: { sales: 0, revenue: 0, profit: 0 },
                 tasks: [
-                    'Revelação total do produto (Design/Notas)',
+                    'Investimento Massivo: R$ 20.000 (Caixa + Fluxo)',
                     'Abertura Antecipada para Grupo VIP (Terça)',
                     'Abertura Geral (Black Friday)',
-                    'Mutirão de envio e logística',
-                    'Comemorar a vitória'
-                ]
+                    'Meta: 300 Próprios + 300 Revenda',
+                    'Sacar Pro-labore de R$ 5.000'
+                ],
+                strategy: `
+                    <div class="space-y-6">
+                        <div class="bg-amber-100 p-4 border-l-4 border-amber-600 rounded-r-md">
+                            <h4 class="font-bold text-amber-900 text-sm uppercase mb-1">Meta Ouro: R$ 150k</h4>
+                            <p class="text-sm text-amber-800">
+                                Não vamos parar em 99k. Com R$ 20.000 de tráfego (recorde absoluto), vamos esgotar o The Chairman e usar o fluxo de clientes para limpar o estoque de revenda.
+                            </p>
+                        </div>
+                        <div class="bg-red-50 p-4 border-l-4 border-red-500 rounded-r-md">
+                            <h4 class="font-bold text-red-900 text-sm uppercase mb-1">Estratégia de Upsell</h4>
+                            <p class="text-sm text-red-800">"Já garantiu sua assinatura (The Chairman)? Leve um importado para o dia a dia com 15% OFF". Aumente o ticket médio.</p>
+                        </div>
+                        <div class="bg-emerald-50 p-4 border-l-4 border-emerald-500 rounded-r-md">
+                            <h4 class="font-bold text-emerald-900 text-sm uppercase mb-1">O Resultado</h4>
+                            <p class="text-sm text-emerald-800">Terminaremos o ano com mais de <strong>R$ 100.000 em caixa livre</strong>.</p>
+                        </div>
+                    </div>
+                `
             }
         ];
 
@@ -462,6 +732,12 @@
         const cashBar = document.getElementById('cash-bar');
         const taskProgressBar = document.getElementById('task-progress-bar');
         const taskProgressText = document.getElementById('task-progress-text');
+        
+        // Modal Elements
+        const modal = document.getElementById('strategy-modal');
+        const modalTitle = document.getElementById('modal-title');
+        const modalPhase = document.getElementById('modal-phase');
+        const modalBody = document.getElementById('modal-body');
 
         // --- INIT ---
         function init() {
@@ -470,6 +746,24 @@
             renderYearlyChart();
             updateGlobalHeader();
         }
+
+        // --- MODAL LOGIC ---
+        function openStrategyModal() {
+            const data = appData[currentMonthIndex];
+            modalTitle.innerText = `${data.month}: Estratégia Detalhada`;
+            modalPhase.innerText = data.phase;
+            modalBody.innerHTML = data.strategy;
+            modal.classList.add('open');
+        }
+
+        function closeStrategyModal() {
+            modal.classList.remove('open');
+        }
+
+        // Close on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeStrategyModal();
+        });
 
         // --- LOGIC: ADD SALE ---
         function addSale() {
@@ -528,7 +822,10 @@
 
         function updateGlobalHeader() {
             // Update Header
-            const targetCash = 36340;
+            // The accumulated target at the end of October (Pre-launch safety net) is ~48k.
+            // But the end-game target (Post-launch) is ~118k. 
+            // Let's show the Pre-Launch target to keep focus on the build-up.
+            const targetCash = 48840; 
             const cashDisplay = document.getElementById('global-cash-display');
             cashDisplay.innerText = `R$ ${globalActualCash.toLocaleString('pt-BR')} / R$ ${targetCash.toLocaleString('pt-BR')}`;
 
@@ -690,6 +987,7 @@
             const revenueData = appData.map(d => d.stats.revenue);
             const cashData = appData.map(d => d.stats.accumulated);
             const adsData = appData.map(d => d.stats.ads);
+            const salaryData = appData.map(d => d.stats.salary);
 
             if (yearlyChartInstance) yearlyChartInstance.destroy();
 
@@ -699,35 +997,50 @@
                     labels: labels,
                     datasets: [
                         {
+                            label: 'Faturamento Mensal',
+                            data: revenueData,
+                            backgroundColor: '#E2E8F0',
+                            borderRadius: 4,
+                            yAxisID: 'y', // Eixo Esquerdo (Valores Altos)
+                            order: 2
+                        },
+                        {
                             label: 'Caixa Acumulado',
                             data: cashData,
                             type: 'line',
-                            borderColor: '#059669',
+                            borderColor: '#059669', // Emerald
                             backgroundColor: '#059669',
                             borderWidth: 3,
                             pointRadius: 4,
                             pointBackgroundColor: '#fff',
                             pointBorderWidth: 2,
-                            yAxisID: 'y',
-                            tension: 0.4
+                            yAxisID: 'y', // Eixo Esquerdo
+                            tension: 0.4,
+                            order: 1
                         },
                         {
-                            label: 'Invest. Tráfego',
+                            label: 'Invest. Tráfego (Eixo Dir.)',
                             data: adsData,
                             type: 'line',
-                            borderColor: '#F59E0B',
-                            borderDash: [5, 5],
+                            borderColor: '#F59E0B', // Amber
                             borderWidth: 2,
-                            pointRadius: 0,
-                            yAxisID: 'y',
-                            tension: 0.4
+                            pointRadius: 3,
+                            pointBackgroundColor: '#fff',
+                            yAxisID: 'y1', // Eixo Direito (Valores Operacionais)
+                            tension: 0.4,
+                            order: 0
                         },
                         {
-                            label: 'Faturamento Mensal',
-                            data: revenueData,
-                            backgroundColor: '#E2E8F0',
-                            borderRadius: 4,
-                            yAxisID: 'y'
+                            label: 'Pro-labore (Eixo Dir.)',
+                            data: salaryData,
+                            type: 'line',
+                            borderColor: '#EF4444', // Red
+                            borderDash: [2, 2],
+                            borderWidth: 2,
+                            pointRadius: 3,
+                            yAxisID: 'y1', // Eixo Direito
+                            tension: 0.4,
+                            order: 0
                         }
                     ]
                 },
@@ -739,13 +1052,38 @@
                         intersect: false,
                     },
                     plugins: {
-                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8 } }
+                        legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) label += ': ';
+                                    if (context.parsed.y !== null) {
+                                        label += new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(context.parsed.y);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
                     },
                     scales: {
                         y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
                             beginAtZero: true,
                             grid: { display: true, borderDash: [2, 4], color: '#f1f1f1' },
+                            title: { display: true, text: 'Faturamento & Caixa', color: '#94a3b8', font: { size: 10 } },
                             ticks: { callback: (value) => 'R$ ' + value/1000 + 'k' }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            beginAtZero: true,
+                            grid: { drawOnChartArea: false }, // Remove grade para não poluir
+                            title: { display: true, text: 'Investimento & Salário', color: '#f59e0b', font: { size: 10 } },
+                            ticks: { callback: (value) => 'R$ ' + value/1000 + 'k', color: '#f59e0b' }
                         },
                         x: {
                             grid: { display: false }
@@ -760,4 +1098,4 @@
 
     </script>
 </body>
-</html>
+                                </html>
