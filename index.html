@@ -78,9 +78,63 @@
             transform: scale(0.95);
             transition: all 0.3s ease-in-out;
         }
+
+        /* Login Overlay Transition */
+        #login-overlay {
+            transition: opacity 0.5s ease-in-out, visibility 0.5s;
+        }
+        #login-overlay.hidden-overlay {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
     </style>
 </head>
-<body class="flex flex-col h-screen overflow-hidden">
+<body class="flex flex-col h-screen overflow-hidden relative">
+
+    <!-- LOGIN OVERLAY -->
+    <div id="login-overlay" class="absolute inset-0 z-50 bg-[#0F172A] flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white rounded-lg shadow-2xl overflow-hidden border border-gray-800">
+            <div class="bg-amber-500 h-2 w-full"></div>
+            <div class="p-8">
+                <div class="text-center mb-8">
+                    <div class="w-12 h-12 bg-slate-900 text-white flex items-center justify-center font-serif font-bold text-2xl rounded-sm mx-auto mb-4">H</div>
+                    <h2 class="serif text-3xl font-bold text-slate-900">Hebert & Co.</h2>
+                    <p class="text-xs uppercase tracking-[0.2em] text-amber-700 font-semibold mt-1">Acesso Restrito</p>
+                </div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">E-mail</label>
+                        <input type="email" id="login-email" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:border-amber-500 text-slate-800 transition-colors" placeholder="seu@email.com">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Senha</label>
+                        <input type="password" id="login-password" class="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-md focus:outline-none focus:border-amber-500 text-slate-800 transition-colors" placeholder="••••••••">
+                    </div>
+                    
+                    <p id="login-error" class="text-red-500 text-xs text-center min-h-[16px]"></p>
+
+                    <button id="btn-login" class="w-full py-3 bg-slate-900 text-white font-bold uppercase tracking-widest rounded-md hover:bg-slate-800 transition-colors shadow-lg">
+                        Entrar
+                    </button>
+                    
+                    <div class="relative flex py-2 items-center">
+                        <div class="flex-grow border-t border-gray-200"></div>
+                        <span class="flex-shrink-0 mx-4 text-gray-400 text-xs">OU</span>
+                        <div class="flex-grow border-t border-gray-200"></div>
+                    </div>
+
+                    <button id="btn-signup" class="w-full py-3 bg-white border border-slate-300 text-slate-700 font-bold uppercase tracking-widest rounded-md hover:bg-slate-50 transition-colors">
+                        Criar Conta
+                    </button>
+                </div>
+            </div>
+            <div class="bg-slate-50 px-8 py-4 text-center border-t border-slate-100">
+                <p class="text-xs text-slate-400">Sistema Seguro • Firebase Auth</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Header -->
     <header class="bg-white border-b border-gray-200 h-16 flex-none z-20 shadow-sm">
@@ -103,9 +157,16 @@
                     <span id="global-cash-display" class="font-bold text-amber-700">R$ 0 / R$ 48.840</span>
                 </div>
                 <div class="h-8 w-px bg-gray-200"></div>
-                <div id="auth-status" class="flex items-center gap-2 text-xs text-slate-400">
-                    <div class="w-2 h-2 rounded-full bg-gray-300"></div>
-                    <span>Conectando...</span>
+                
+                <!-- Auth Status & Logout -->
+                <div class="flex items-center gap-4">
+                    <div id="auth-status" class="flex items-center gap-2 text-xs text-slate-400">
+                        <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+                        <span id="user-email-display">Conectando...</span>
+                    </div>
+                    <button id="btn-logout" class="text-xs font-bold text-slate-500 hover:text-red-600 uppercase tracking-wider hidden">
+                        Sair
+                    </button>
                 </div>
             </div>
         </div>
@@ -321,62 +382,134 @@
     <!-- JavaScript Application Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInWithCustomToken, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, getDoc, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE SETUP ---
-        const firebaseConfig = JSON.parse(window.__firebase_config || '{}');
+        const manualConfig = {
+            apiKey: "AIzaSyCSySol-gHnc32PKjDCHrOHi1RMwpmRnRw",
+            authDomain: "hebertco-49807.firebaseapp.com",
+            projectId: "hebertco-49807",
+            storageBucket: "hebertco-49807.firebasestorage.app",
+            messagingSenderId: "855091637140",
+            appId: "1:855091637140:web:e402397aac9b345d33bd81"
+        };
+
+        // Priority to manual config since user provided it
+        const firebaseConfig = manualConfig;
+
         let db = null;
         let auth = null;
         let user = null;
         const appId = typeof window.__app_id !== 'undefined' ? window.__app_id : 'hebert-co';
 
+        // DOM Elements for Auth
+        const loginOverlay = document.getElementById('login-overlay');
+        const loginEmailInput = document.getElementById('login-email');
+        const loginPassInput = document.getElementById('login-password');
+        const loginErrorMsg = document.getElementById('login-error');
+        const btnLogin = document.getElementById('btn-login');
+        const btnSignup = document.getElementById('btn-signup');
+        const btnLogout = document.getElementById('btn-logout');
+        const authStatusDot = document.querySelector('#auth-status div');
+        const authStatusText = document.getElementById('user-email-display');
+
         async function initFirebase() {
             try {
-                if (!firebaseConfig.apiKey) {
-                    console.warn("Firebase config missing. Local mode only.");
-                    updateAuthStatus(false, "Modo Local");
-                    return;
-                }
                 const app = initializeApp(firebaseConfig);
                 auth = getAuth(app);
                 db = getFirestore(app);
 
-                // Authenticate
-                if (typeof window.__initial_auth_token !== 'undefined' && window.__initial_auth_token) {
-                    await signInWithCustomToken(auth, window.__initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-
+                // Auth Listener
                 onAuthStateChanged(auth, (u) => {
                     user = u;
                     if (user) {
-                        updateAuthStatus(true, "Sincronizado");
+                        // User is signed in
+                        loginOverlay.classList.add('hidden-overlay');
+                        btnLogout.classList.remove('hidden');
+                        authStatusDot.className = "w-2 h-2 rounded-full bg-emerald-500";
+                        authStatusText.innerText = user.email;
+                        authStatusText.className = "text-emerald-600 font-bold";
                         loadData();
                     } else {
-                        updateAuthStatus(false, "Desconectado");
+                        // User is signed out
+                        loginOverlay.classList.remove('hidden-overlay');
+                        btnLogout.classList.add('hidden');
+                        authStatusDot.className = "w-2 h-2 rounded-full bg-slate-300";
+                        authStatusText.innerText = "Aguardando Login";
+                        authStatusText.className = "text-slate-400";
+                        // Reset data display to zero for safety
+                        globalActualCash = 0;
+                        appData.forEach(m => { m.actual = {sales:0, revenue:0, profit:0}; m.tasks.forEach(t => t.done = false); });
+                        window.loadMonth(0);
+                        window.updateGlobalHeader();
                     }
                 });
 
             } catch (e) {
                 console.error("Firebase init error:", e);
-                updateAuthStatus(false, "Erro Conexão");
+                loginErrorMsg.innerText = "Erro ao conectar com servidor.";
             }
         }
 
-        function updateAuthStatus(connected, text) {
-            const el = document.getElementById('auth-status');
-            const dot = el.querySelector('div');
-            const span = el.querySelector('span');
-            
-            if (connected) {
-                dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
-                span.innerText = text;
-                span.className = "text-emerald-600 font-bold";
-            } else {
-                dot.className = "w-2 h-2 rounded-full bg-red-400";
-                span.innerText = text;
+        // --- AUTH FUNCTIONS ---
+        async function handleLogin() {
+            const email = loginEmailInput.value;
+            const password = loginPassInput.value;
+            loginErrorMsg.innerText = "";
+
+            if(!email || !password) {
+                loginErrorMsg.innerText = "Preencha e-mail e senha.";
+                return;
+            }
+
+            try {
+                btnLogin.innerText = "Entrando...";
+                await signInWithEmailAndPassword(auth, email, password);
+                // Success handled by onAuthStateChanged
+            } catch (error) {
+                console.error(error);
+                loginErrorMsg.innerText = "E-mail ou senha incorretos.";
+            } finally {
+                btnLogin.innerText = "ENTRAR";
+            }
+        }
+
+        async function handleSignup() {
+            const email = loginEmailInput.value;
+            const password = loginPassInput.value;
+            loginErrorMsg.innerText = "";
+
+            if(!email || !password) {
+                loginErrorMsg.innerText = "Preencha e-mail e senha.";
+                return;
+            }
+            if(password.length < 6) {
+                loginErrorMsg.innerText = "A senha deve ter no mínimo 6 caracteres.";
+                return;
+            }
+
+            try {
+                btnSignup.innerText = "Criando...";
+                await createUserWithEmailAndPassword(auth, email, password);
+                // Success handled by onAuthStateChanged
+            } catch (error) {
+                console.error(error);
+                if(error.code === 'auth/email-already-in-use') {
+                    loginErrorMsg.innerText = "Este e-mail já está cadastrado.";
+                } else {
+                    loginErrorMsg.innerText = "Erro ao criar conta. Tente novamente.";
+                }
+            } finally {
+                btnSignup.innerText = "CRIAR CONTA";
+            }
+        }
+
+        async function handleLogout() {
+            try {
+                await signOut(auth);
+            } catch (error) {
+                console.error(error);
             }
         }
 
@@ -384,9 +517,8 @@
         async function saveData() {
             if (!db || !user) return;
             
-            updateAuthStatus(true, "Salvando...");
+            authStatusText.innerText = "Salvando...";
             
-            // Extract only dynamic data to save
             const savePayload = {
                 actuals: appData.map(m => m.actual),
                 tasks: appData.map(m => m.tasks.map(t => t.done)),
@@ -394,12 +526,12 @@
             };
 
             try {
-                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'gps_data');
+                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'app_data', 'gps_progress');
                 await setDoc(userDocRef, savePayload, { merge: true });
-                setTimeout(() => updateAuthStatus(true, "Sincronizado"), 800);
+                setTimeout(() => authStatusText.innerText = user.email, 800);
             } catch (e) {
                 console.error("Save error:", e);
-                updateAuthStatus(false, "Erro ao Salvar");
+                authStatusText.innerText = "Erro ao Salvar";
             }
         }
 
@@ -407,18 +539,16 @@
             if (!db || !user) return;
 
             try {
-                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'gps_data');
+                const userDocRef = doc(db, 'artifacts', appId, 'users', user.uid, 'app_data', 'gps_progress');
                 const docSnap = await getDoc(userDocRef);
 
                 if (docSnap.exists()) {
                     const data = docSnap.data();
                     
-                    // Merge loaded data into appData
                     if (data.actuals) {
                         data.actuals.forEach((act, idx) => {
                             if (appData[idx]) appData[idx].actual = act;
                         });
-                        // Update global calculated totals
                         globalActualCash = appData.reduce((sum, item) => sum + item.actual.profit, 0);
                     }
 
@@ -433,16 +563,15 @@
                     }
 
                     // Refresh UI
-                    loadMonth(currentMonthIndex);
-                    updateGlobalHeader();
+                    window.loadMonth(currentMonthIndex);
+                    window.updateGlobalHeader();
                 }
             } catch (e) {
                 console.error("Load error:", e);
             }
         }
 
-        // --- DATA STORE (Config & Logic) ---
-        // Tasks are now objects {text, done} for state tracking
+        // --- DATA STORE ---
         const appData = [
             {
                 id: 0,
@@ -781,6 +910,9 @@
 
         // --- INIT ---
         window.addEventListener('DOMContentLoaded', () => {
+            btnLogin.addEventListener('click', handleLogin);
+            btnSignup.addEventListener('click', handleSignup);
+            btnLogout.addEventListener('click', handleLogout);
             initFirebase();
             renderNav();
             loadMonth(0);
@@ -865,8 +997,6 @@
         }
 
         window.updateGlobalHeader = () => {
-            // Update Header
-            // The accumulated target at the end of October (Pre-launch safety net) is ~48k.
             const targetCash = 48840; 
             const cashDisplay = document.getElementById('global-cash-display');
             cashDisplay.innerText = `R$ ${globalActualCash.toLocaleString('pt-BR')} / R$ ${targetCash.toLocaleString('pt-BR')}`;
@@ -893,8 +1023,6 @@
              
              // Update State
              inputs.forEach((input, index) => {
-                 // The ID structure is task-{monthIdx}-{taskIdx}
-                 // But inputs are re-rendered based on currentMonthIndex, so index here matches task index
                  if(appData[currentMonthIndex].tasks[index]) {
                      appData[currentMonthIndex].tasks[index].done = input.checked;
                  }
@@ -937,7 +1065,6 @@
             currentMonthIndex = index;
             const data = appData[index];
 
-            // Update UI Styling for Active Nav
             document.querySelectorAll('.nav-item').forEach((el, i) => {
                 el.classList.toggle('active', i === index);
                 if(i === index) {
@@ -949,22 +1076,15 @@
                 }
             });
 
-            // Content Updates
             document.getElementById('current-phase-badge').innerText = data.phase;
             document.getElementById('month-title').innerText = `${data.month}: ${data.focus}`;
             document.getElementById('month-desc').innerText = data.desc;
             document.getElementById('month-tip').innerText = data.tip;
-
-            // Stats (Target)
             document.getElementById('stat-ads').innerText = `R$ ${data.stats.ads.toLocaleString('pt-BR')}`;
+            // Removed stat-salary reference
             
-            // Trigger Dashboard Update to show Actuals vs Targets
             updateDashboardNumbers();
-
-            // Checklist
             renderChecklist(data.tasks);
-
-            // Monthly Chart
             renderMonthlyChart(data.stats);
         }
 
@@ -974,7 +1094,6 @@
                 const id = `task-${currentMonthIndex}-${i}`;
                 const div = document.createElement('div');
                 div.className = 'checkbox-wrapper relative';
-                // Add checked attribute if done
                 const checkedAttr = taskObj.done ? 'checked' : '';
                 
                 div.innerHTML = `
@@ -990,7 +1109,6 @@
                 `;
                 checklistContainer.appendChild(div);
             });
-            // Update the bar without triggering save again immediately (optional, but cleaner UI sync)
             const inputs = checklistContainer.querySelectorAll('input[type="checkbox"]');
             const checked = checklistContainer.querySelectorAll('input[type="checkbox"]:checked');
             const pct = inputs.length > 0 ? (checked.length / inputs.length) * 100 : 0;
@@ -1026,7 +1144,7 @@
                     labels: ['Custo Produto', 'Reinvest. Tráfego', 'Seu Pro-Labore', 'Caixa Empresa'],
                     datasets: [{
                         data: [productCost, stats.ads, stats.salary, displayVault],
-                        backgroundColor: ['#CBD5E1', '#F59E0B', '#94A3B8', '#059669'],
+                        backgroundColor: ['#CBD5E1', '#F59E0B', '#EF4444', '#059669'],
                         borderWidth: 0,
                         hoverOffset: 4
                     }]
@@ -1073,7 +1191,7 @@
                             data: revenueData,
                             backgroundColor: '#E2E8F0',
                             borderRadius: 4,
-                            yAxisID: 'y', // Eixo Esquerdo (Valores Altos)
+                            yAxisID: 'y', 
                             order: 2
                         },
                         {
@@ -1086,7 +1204,7 @@
                             pointRadius: 4,
                             pointBackgroundColor: '#fff',
                             pointBorderWidth: 2,
-                            yAxisID: 'y', // Eixo Esquerdo
+                            yAxisID: 'y', 
                             tension: 0.4,
                             order: 1
                         },
@@ -1098,7 +1216,7 @@
                             borderWidth: 2,
                             pointRadius: 3,
                             pointBackgroundColor: '#fff',
-                            yAxisID: 'y1', // Eixo Direito (Valores Operacionais)
+                            yAxisID: 'y1', 
                             tension: 0.4,
                             order: 0
                         },
@@ -1110,7 +1228,7 @@
                             borderDash: [2, 2],
                             borderWidth: 2,
                             pointRadius: 3,
-                            yAxisID: 'y1', // Eixo Direito
+                            yAxisID: 'y1', 
                             tension: 0.4,
                             order: 0
                         }
@@ -1153,7 +1271,7 @@
                             display: true,
                             position: 'right',
                             beginAtZero: true,
-                            grid: { drawOnChartArea: false }, // Remove grade para não poluir
+                            grid: { drawOnChartArea: false }, 
                             title: { display: true, text: 'Investimento & Salário', color: '#f59e0b', font: { size: 10 } },
                             ticks: { callback: (value) => 'R$ ' + value/1000 + 'k', color: '#f59e0b' }
                         },
